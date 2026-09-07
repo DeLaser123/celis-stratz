@@ -284,7 +284,7 @@ impl Project {
                         status: CheckStatus::Warn,
                         detail: format!(
                             "latest '{}' has strategy.md but no compiled strategy.yaml \
-                             (run `backtest ai compile` or write it manually)",
+                             (run `stratz ai compile` or write it manually)",
                             latest.name
                         ),
                     });
