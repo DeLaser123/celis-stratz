@@ -1,0 +1,7 @@
+scenario:
+  name: vol_spike_2x
+  transforms:
+    - type: vol_regime
+      mult: 2.0
+  costs:
+    spread_fixed: 0.0003

@@ -1,0 +1,27 @@
+[package]
+name = "bt-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "stratz"
+path = "src/main.rs"
+
+[dependencies]
+bt-core = { workspace = true }
+bt-data = { workspace = true }
+bt-strategy = { workspace = true }
+bt-simulation = { workspace = true }
+bt-analytics = { workspace = true }
+rust_decimal = { workspace = true }
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+serde = { workspace = true }
+csv = { workspace = true }
+bt-harness = { workspace = true }
+bt-ai = { workspace = true }
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+clap = { workspace = true }
+tracing = { workspace = true }

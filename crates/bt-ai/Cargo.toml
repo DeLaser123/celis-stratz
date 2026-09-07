@@ -1,0 +1,20 @@
+[package]
+name = "bt-ai"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bt-core = { workspace = true }
+bt-strategy = { workspace = true }
+bt-simulation = { workspace = true }
+rust_decimal = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+ureq = { version = "2", features = ["json"] }
+serde_yaml = { workspace = true }
+keyring = { version = "3", features = ["windows-native", "apple-native"] }
+toml = "0.8"
+
+[dev-dependencies]
+chrono-tz = { workspace = true }

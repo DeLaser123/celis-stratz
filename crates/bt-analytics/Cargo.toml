@@ -1,0 +1,15 @@
+[package]
+name = "bt-analytics"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bt-core = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+chrono-tz = { workspace = true }

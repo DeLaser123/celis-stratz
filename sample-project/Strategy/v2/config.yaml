@@ -1,0 +1,31 @@
+market:
+  timeframe: 1h
+  timezone: UTC
+  validation_mode: strict
+account:
+  starting_capital: 100000
+  currency: USD
+costs:
+  spread: {type: fixed, spread: 0.00020}
+  slippage: {type: percentage, bps: 1}
+  commission: {type: percentage, rate: 0.00002}
+  financing: {type: zero}
+execution:
+  model: next_open
+  intrabar_policy: conservative
+  participation_cap: 0.10
+risk:
+  max_leverage: 5.0
+  max_position_notional_pct: 1000
+  max_concurrent_positions: 3
+analytics:
+  returns_freq: daily
+  monte_carlo: {paths: 500, seed: 42, method: reshuffle, ruin_threshold_pct: 50}
+instruments:
+  EURUSD:
+    contract_size: 1
+    qty_step: 1
+    leverage: 5
+runtime:
+  end_policy: close_all
+  indicator_mode: precompute

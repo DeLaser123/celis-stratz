@@ -1,0 +1,16 @@
+strategy:
+  name: eurusd_trend_rider_fast
+  symbols: [EURUSD]
+  entry:
+    direction: long
+    when:
+      cross_above: [{field: close}, {sma: {source: {field: close}, period: 10}}]
+  exit:
+    when:
+      cross_below: [{field: close}, {sma: {source: {field: close}, period: 10}}]
+  orders:
+    entry: {type: market}
+    stop_loss: {type: atr_multiple, period: 10, multiple: 2.0}
+    take_profit: {type: risk_multiple, value: 2.0}
+  risk:
+    sizing: {mode: percent_risk, value: 1.0}

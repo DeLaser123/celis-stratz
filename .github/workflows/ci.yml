@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  gates:
+    name: fmt + clippy + tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo fmt --check
+        run: cargo fmt --check
+
+      - name: cargo clippy (all targets, all features, warnings = errors)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: cargo test (release)
+        run: cargo test --release
+
+      - name: determinism gate
+        run: cargo test --release -p bt-simulation --test determinism
+
+      - name: sample project doctor
+        shell: bash
+        run: |
+          cargo build --release
+          cd sample-project
+          ../target/release/stratz doctor

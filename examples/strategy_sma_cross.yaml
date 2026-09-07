@@ -1,0 +1,19 @@
+strategy:
+  name: sma_cross_long
+  symbols: [EURUSD]
+  entry:
+    direction: long
+    when:
+      all:
+        - cross_above: [{field: close}, {sma: {source: {field: close}, period: 10}}]
+        - gt: [{rsi: {source: {field: close}, period: 14}}, 45]
+  exit:
+    when:
+      any:
+        - cross_below: [{field: close}, {sma: {source: {field: close}, period: 10}}]
+  orders:
+    entry: {type: market}
+    stop_loss: {type: atr_multiple, period: 14, multiple: 2.0}
+    take_profit: {type: risk_multiple, value: 2.0}
+  risk:
+    sizing: {mode: percent_risk, value: 1.0}

@@ -1,0 +1,28 @@
+[package]
+name = "bt-harness"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+chrono-tz = { workspace = true }
+bt-core = { workspace = true }
+bt-data = { workspace = true }
+bt-strategy = { workspace = true }
+bt-execution = { workspace = true }
+bt-accounting = { workspace = true }
+bt-risk = { workspace = true }
+bt-analytics = { workspace = true }
+bt-simulation = { workspace = true }
+bt-ai = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+chrono = { workspace = true }
+rayon = { workspace = true }
+rusqlite = { version = "0.32", features = ["bundled"] }
+csv = { workspace = true }
+toml = "0.8"
+
+[dev-dependencies]

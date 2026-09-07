@@ -1,0 +1,8 @@
+scenario:
+  name: crash_1pct
+  transforms:
+    - type: gap_shock
+      pct: -1.0
+  costs:
+    spread_fixed: 0.0004
+    slippage_bps_add: 2

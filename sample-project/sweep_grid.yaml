@@ -1,0 +1,5 @@
+objective: sharpe
+mode: grid
+grid:
+  orders.stop_loss.multiple: [1.5, 2.0, 3.0]
+  risk.sizing.value: [0.5, 1.0]

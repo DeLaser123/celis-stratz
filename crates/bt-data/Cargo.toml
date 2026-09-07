@@ -1,0 +1,18 @@
+[package]
+name = "bt-data"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bt-core = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+csv = { workspace = true }
+arrow = { version = "53", default-features = false }
+bytes = "1"
+parquet = { version = "53", default-features = false, features = ["arrow"] }
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+sha2 = { workspace = true }

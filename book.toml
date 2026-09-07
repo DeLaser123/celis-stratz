@@ -1,0 +1,13 @@
+[book]
+title = "Stratz"
+authors = ["Stratz"]
+src = "docs-src"
+description = "Deterministic, auditable trading backtesting engine + enterprise harness"
+
+[build]
+build-dir = "target/docs"
+create-missing = false
+
+[output.html]
+default-theme = "light"
+git-repository-url = "https://github.com/DeLaser123/celis-stratz"

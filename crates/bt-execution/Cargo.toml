@@ -1,0 +1,10 @@
+[package]
+name = "bt-execution"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bt-core = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+serde = { workspace = true }

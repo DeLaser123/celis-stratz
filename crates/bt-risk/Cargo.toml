@@ -1,0 +1,14 @@
+[package]
+name = "bt-risk"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bt-core = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
