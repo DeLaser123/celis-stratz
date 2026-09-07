@@ -79,7 +79,7 @@ pub fn render_run_report(
     format!(
         r#"<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
-<title>Celis report — {strategy}</title>{extra_head}
+<title>Stratz report — {strategy}</title>{extra_head}
 <style>
  body {{ font-family: "Segoe UI", system-ui, sans-serif; margin: 24px; color: #1f2937; background: #f8fafc; }}
  h1 {{ font-size: 20px; margin: 0 0 4px; }} h2 {{ font-size: 15px; margin: 28px 0 8px; color: #334155; }}

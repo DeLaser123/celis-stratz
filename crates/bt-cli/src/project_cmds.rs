@@ -36,7 +36,7 @@ pub fn resolve_inputs(
         Some(p) => p.to_path_buf(),
         None => {
             let p = project.as_ref().ok_or_else(|| {
-                CoreError::InvalidData("no --data given and not inside a celis project".into())
+                CoreError::InvalidData("no --data given and not inside a stratz project".into())
             })?;
             let files = p.data_files()?;
             match files.len() {
@@ -64,7 +64,7 @@ pub fn resolve_inputs(
         Some(p) => p.to_path_buf(),
         None => {
             let p = project.as_ref().ok_or_else(|| {
-                CoreError::InvalidData("no --strategy given and not inside a celis project".into())
+                CoreError::InvalidData("no --strategy given and not inside a stratz project".into())
             })?;
             let version = p.resolve_strategy(strategy_version)?;
             let spec = version.path.join("strategy.yaml");

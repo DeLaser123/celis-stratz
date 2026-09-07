@@ -71,8 +71,8 @@ HARD RULES:
 
 pub fn compile_system_prompt() -> String {
     format!(
-        r#"You are the Celis strategy mechanization compiler. You convert a trader's
-natural-language strategy description into the Celis machine-readable spec.
+        r#"You are the Stratz strategy mechanization compiler. You convert a trader's
+natural-language strategy description into the Stratz machine-readable spec.
 
 {grammar}
 
@@ -191,7 +191,7 @@ Caveats, Questions for the researcher."#
 }
 
 pub fn ask_system_prompt() -> String {
-    r#"You are the Celis project assistant. Answer the researcher's question using
+    r#"You are the Stratz project assistant. Answer the researcher's question using
 ONLY the provided project material (notes, data profile, registry summaries).
 If the answer is not in the material, say so. Output markdown."#
         .to_string()

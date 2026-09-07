@@ -333,11 +333,11 @@ pub fn cmd_explain(
         let unverified = bt_ai::prompts::unverified_numbers(response, &context);
         if !unverified.is_empty() {
             println!(
-                "\n[celis verification] numbers NOT found in the provided artifacts (verify manually): {}",
+                "\n[stratz verification] numbers NOT found in the provided artifacts (verify manually): {}",
                 unverified.join(", ")
             );
         } else {
-            println!("\n[celis verification] all quoted numbers found in the artifacts");
+            println!("\n[stratz verification] all quoted numbers found in the artifacts");
         }
         println!(
             "[ledger #{} · {} tokens · cache_hit={}]",

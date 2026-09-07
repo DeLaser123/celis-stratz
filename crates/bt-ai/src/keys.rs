@@ -1,5 +1,5 @@
 //! API-key resolution and storage. Precedence: explicit flag >
-//! CELIS_API_KEY environment variable > OS keyring (saved via `ai login`).
+//! STRATZ_API_KEY environment variable > OS keyring (saved via `ai login`).
 //! Keys are NEVER written to project folders, logs, or the ledger.
 
 use bt_core::error::{CoreError, CoreResult};
@@ -21,7 +21,7 @@ impl KeySource {
     pub fn label(self) -> &'static str {
         match self {
             KeySource::Flag => "command-line flag (session only)",
-            KeySource::Env => "environment variable CELIS_API_KEY",
+            KeySource::Env => "environment variable STRATZ_API_KEY",
             KeySource::Keyring => "OS keyring",
             KeySource::None => "not configured",
         }

@@ -31,7 +31,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Scaffold a celis project in the current folder.
+    /// Scaffold a stratz project in the current folder.
     Init,
     /// Verify the folder contract of the current project.
     Doctor,
@@ -328,7 +328,7 @@ fn dispatch(cli: Cli) -> CoreResult<()> {
         }
         Commands::Init => {
             let cwd = std::env::current_dir().map_err(CoreError::Io)?;
-            if cwd.join(".celis").exists() || cwd.join("Strategy").exists() {
+            if cwd.join(".stratz").exists() || cwd.join("Strategy").exists() {
                 return Err(CoreError::InvalidData(
                     "this folder is already a stratz project".into(),
                 ));

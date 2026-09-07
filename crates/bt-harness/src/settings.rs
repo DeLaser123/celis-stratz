@@ -1,4 +1,4 @@
-//! Harness settings (.celis/config.toml). Holds AI defaults and run defaults.
+//! Harness settings (.stratz/config.toml). Holds AI defaults and run defaults.
 //! The API key is NEVER stored here — only a key SOURCE may be referenced
 //! indirectly; actual keys live in flags, environment, or the OS keyring.
 

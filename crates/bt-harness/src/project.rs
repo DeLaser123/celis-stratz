@@ -8,7 +8,7 @@
 //!   Data/                  *.csv chart data + dataset.md notes
 //!   Trades/                signals_*.csv, history_*.csv
 //!   Notes/                 any *.md (AI context, playbooks)
-//!   .celis/                harness state (registry, results, cache, config)
+//!   .stratz/               harness state (registry, results, cache, config)
 //! ```
 //!
 //! The harness discovers all of it; the kernel never touches folders.
@@ -87,7 +87,7 @@ pub struct Project {
 
 impl Project {
     /// The project root for the current working directory: walks up until a
-    /// folder containing `.celis` or `Strategy` is found.
+    /// folder containing `.stratz` or `Strategy` is found.
     pub fn discover(start: &Path) -> CoreResult<Project> {
         let mut cur = Some(start);
         while let Some(dir) = cur {
@@ -368,11 +368,11 @@ impl Project {
             },
             detail: if state_ok {
                 format!(
-                    ".celis/ present (registry at {})",
+                    ".stratz/ present (registry at {})",
                     self.registry_path().display()
                 )
             } else {
-                ".celis/ missing (created automatically on first run)".into()
+                ".stratz/ missing (created automatically on first run)".into()
             },
         });
 
@@ -494,9 +494,9 @@ Describe the data in Data/: source, timezone, bar convention (open or close
 timestamps), known gaps. This file is also provided to the AI as context.
 "#;
 
-const HARNESS_CONFIG_TEMPLATE: &str = r#"# Celis harness settings. The API key is NEVER stored here —
-# provide it via --api-key, the CELIS_API_KEY environment variable,
-# or the OS keyring (--save-key).
+const HARNESS_CONFIG_TEMPLATE: &str = r#"# Stratz harness settings. The API key is NEVER stored here —
+# provide it via --api-key, the STRATZ_API_KEY environment variable,
+# or the OS keyring (stratz ai login).
 
 [ai]
 provider = "zai"          # zai | openai-compatible
