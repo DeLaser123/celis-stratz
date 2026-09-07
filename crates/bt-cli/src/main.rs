@@ -3,6 +3,7 @@
 
 mod ai_cmds;
 mod project_cmds;
+mod selfupdate;
 
 use bt_core::error::{CoreError, CoreResult};
 use bt_core::time::Ts;
@@ -176,6 +177,24 @@ enum Commands {
         #[arg(long, default_value_t = 42)]
         seed: u64,
     },
+    /// Update the installed stratz binary (source build or GitHub release).
+    SelfUpdate {
+        /// Report availability without applying.
+        #[arg(long, default_value_t = false)]
+        check: bool,
+        /// Re-download the latest GitHub release even if not newer.
+        #[arg(long, default_value_t = false)]
+        force: bool,
+        /// Turn auto-update off.
+        #[arg(long, default_value_t = false)]
+        disable: bool,
+        /// Turn auto-update back on.
+        #[arg(long, default_value_t = false)]
+        enable: bool,
+        /// Point the dev source marker at this repo path.
+        #[arg(long)]
+        set_source: Option<PathBuf>,
+    },
     /// AI commands (natural-language strategy compilation, grounded analysis).
     Ai {
         #[command(subcommand)]
@@ -312,6 +331,7 @@ enum RegistryCmd {
 }
 
 fn main() {
+    selfupdate::precheck();
     let cli = Cli::parse();
     if let Err(e) = dispatch(cli) {
         eprintln!("error: {e}");
@@ -321,6 +341,24 @@ fn main() {
 
 fn dispatch(cli: Cli) -> CoreResult<()> {
     match cli.command {
+        Commands::SelfUpdate {
+            check,
+            force,
+            disable,
+            enable,
+            set_source,
+        } => {
+            if disable {
+                selfupdate::set_disabled(true)?;
+            } else if enable {
+                selfupdate::set_disabled(false)?;
+            } else if let Some(src) = &set_source {
+                selfupdate::set_source(src)?;
+            } else {
+                selfupdate::report_and_apply(force, check)?;
+            }
+            Ok(())
+        }
         Commands::Ai { cmd } => ai_dispatch(cmd),
         Commands::Version => {
             println!("stratz {}", env!("CARGO_PKG_VERSION"));
@@ -1512,6 +1550,7 @@ fn ai_dispatch(cmd: AiCmd) -> CoreResult<()> {
                 no_cache: false,
             };
             let ai = ai_cmds::setup_with(project.clone(), &flags, false)?;
+            selfupdate::status()?;
             ai_cmds::cmd_status(&ai, project.as_ref())
         }
         AiCmd::Ledger { limit } => {

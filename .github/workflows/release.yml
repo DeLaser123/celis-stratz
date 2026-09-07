@@ -41,15 +41,12 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          cd target/${{ matrix.target }}/release
-          tar czf ../../../${{ matrix.archive }} stratz
+          cp target/${{ matrix.target }}/release/stratz ${{ matrix.archive }}
 
       - name: package (windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: |
-          Compress-Archive -Path target/${{ matrix.target }}/release/stratz.exe `
-            -DestinationPath ${{ matrix.archive }}
+        run: Copy-Item target/${{ matrix.target }}/release/stratz.exe ${{ matrix.archive }}
 
       - name: smoke test (unix)
         if: runner.os != 'Windows'

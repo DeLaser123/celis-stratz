@@ -25,12 +25,16 @@ case "${1:-}" in
     mkdir -p "$BIN_DIR"
     install -m 0755 "$tmp/stratz" "$BIN_DIR/stratz"
     echo "installed: $BIN_DIR/stratz"
+    echo "auto-update: stratz checks GitHub releases daily (stratz self-update --check)"
     ;;
   *)
     echo "building from source..."
     cargo build --release
     mkdir -p "$BIN_DIR"
     install -m 0755 target/release/stratz "$BIN_DIR/stratz"
+    mkdir -p "$HOME/.stratz"
+    printf '%s' "$(cd . && pwd)" > "$HOME/.stratz/source.txt"
+    echo "source marker: $HOME/.stratz/source.txt (dev auto-update enabled)"
     echo "installed: $BIN_DIR/stratz"
     ;;
 esac

@@ -419,6 +419,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tracing",
+ "ureq",
 ]
 
 [[package]]
