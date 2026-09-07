@@ -100,7 +100,7 @@ impl Project {
         }
         Err(CoreError::InvalidData(format!(
             "not inside a stratz project (no '{STATE_DIR}' or '{STRATEGY_DIR}' folder found \
-             walking up from {}); run `backtest init` to create one",
+             walking up from {}); run `stratz init` to create one",
             start.display()
         )))
     }
@@ -475,7 +475,7 @@ fn list_csv_with_sniff(dir: &Path, _recursive: bool) -> CoreResult<Vec<DataFile>
 
 const STRATEGY_TEMPLATE: &str = r#"# Strategy: <name>
 
-Describe the strategy in plain language. The AI compiler (`backtest ai compile`)
+Describe the strategy in plain language. The AI compiler (`stratz ai compile`)
 turns this document into `strategy.yaml`, which the engine can execute. The
 engine rejects ambiguity, so state every rule precisely:
 
