@@ -35,8 +35,10 @@ fn home_dir() -> Option<PathBuf> {
         .or_else(|| std::env::var_os("HOME").map(PathBuf::from))
 }
 
+/// CLI-level home state. Deliberately named `.stratz-cli` so it can never
+/// collide with the project-contract `.stratz` directory during discovery.
 fn stratz_home() -> Option<PathBuf> {
-    home_dir().map(|h| h.join(".stratz"))
+    home_dir().map(|h| h.join(".stratz-cli"))
 }
 
 fn marker_path() -> Option<PathBuf> {

@@ -2,6 +2,7 @@
 pub mod actions;
 pub mod bar;
 pub mod csv;
+pub mod dukascopy;
 pub mod parquet_io;
 pub mod resample;
 pub mod validate;

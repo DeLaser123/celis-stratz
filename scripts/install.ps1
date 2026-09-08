@@ -14,7 +14,7 @@ Copy-Item target/release/stratz.exe "$binDir/stratz.exe" -Force
 Write-Host "installed: $binDir\stratz.exe"
 
 # self-update: record the source repo so the binary can pick up dev builds
-$stratzHome = "$env:USERPROFILE\.stratz"
+$stratzHome = "$env:USERPROFILE\.stratz-cli"
 New-Item -ItemType Directory -Force -Path $stratzHome | Out-Null
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Content -Path "$stratzHome\source.txt" -Value $repoRoot

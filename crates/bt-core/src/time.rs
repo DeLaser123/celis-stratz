@@ -13,7 +13,6 @@ const NAIVE_FORMATS: &[&str] = &[
     "%Y-%m-%dT%H:%M:%S%.f",
     "%Y-%m-%d %H:%M",
     "%Y-%m-%dT%H:%M",
-    "%Y-%m-%d",
 ];
 
 /// Format a timestamp deterministically: whole seconds as `...Z`, otherwise
@@ -87,6 +86,21 @@ pub fn parse_timestamp(raw: &str, tz: chrono_tz::Tz, context: &str) -> CoreResul
     if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
         return Ok(dt.with_timezone(&Utc));
     }
+    // Bare date (YYYY-MM-DD) → midnight. NaiveDateTime::parse_from_str
+    // rejects date-only formats, so this is handled explicitly.
+    if let Ok(date) = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+        return match tz.from_local_datetime(&date.and_hms_opt(0, 0, 0).unwrap()) {
+            chrono::LocalResult::Single(dt) => Ok(dt.with_timezone(&Utc)),
+            chrono::LocalResult::Ambiguous(_, _) => Err(CoreError::InvalidTimestamp {
+                context: context.into(),
+                detail: format!("ambiguous local time '{s}' (DST fold)"),
+            }),
+            chrono::LocalResult::None => Err(CoreError::InvalidTimestamp {
+                context: context.into(),
+                detail: format!("local time '{s}' does not exist (DST gap)"),
+            }),
+        };
+    }
     // Naive datetime in configured timezone.
     for fmt in NAIVE_FORMATS {
         if let Ok(naive) = NaiveDateTime::parse_from_str(s, fmt) {
@@ -158,6 +172,13 @@ mod tests {
             parse_timestamp("2024-01-02T03:00:00Z", utc, "t").unwrap()
         );
         assert!(parse_timestamp("not a time", utc, "t").is_err());
+    }
+
+    #[test]
+    fn bare_date_parses_as_midnight() {
+        let utc: chrono_tz::Tz = "UTC".parse().unwrap();
+        let t = parse_timestamp("2024-01-04", utc, "t").unwrap();
+        assert_eq!(format_ts(t), "2024-01-04T00:00:00Z");
     }
 
     #[test]

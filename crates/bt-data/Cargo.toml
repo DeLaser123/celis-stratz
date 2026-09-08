@@ -12,6 +12,8 @@ serde_json = { workspace = true }
 csv = { workspace = true }
 arrow = { version = "53", default-features = false }
 bytes = "1"
+ureq = { version = "2" }
+lzma-rs = "0.3"
 parquet = { version = "53", default-features = false, features = ["arrow"] }
 chrono = { workspace = true }
 chrono-tz = { workspace = true }

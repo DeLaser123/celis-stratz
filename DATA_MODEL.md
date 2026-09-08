@@ -75,6 +75,28 @@ timestamp,symbol,kind,value
 - `split`: new units per old unit. Adjusts open positions, protective levels,
   and pending orders at the ex-date bar. **Use with unadjusted price data only.**
 
+## Dukascopy downloader
+
+`stratz pull-chart <SYMBOL> <tf,lookback>` downloads real OHLCV candles from
+Dukascopy's public datafeed:
+
+```bash
+stratz pull-chart EURUSD 5,3        # 5-minute candles, 3 years back
+stratz pull-chart EURUSD 1h,2y      # hourly, 2 years back
+stratz pull-chart EURUSD 1d --from 2022-01-01 --to 2024-06-30
+stratz pull-chart EURUSD 15m,6mo --side ask --decimals 5
+```
+
+- Inside a project the CSV lands in `Data/<SYMBOL>_<tf>.csv` and is
+  auto-detected by `stratz run`; otherwise use `--output`.
+- Native granularity: sub-hour timeframes aggregate from Dukascopy's 1-minute
+  files; >= 1d from daily files. Volume is Dukascopy's native unit (millions).
+- Timestamps are UTC bar-open times, matching the engine's default convention.
+- Dukascopy's edge requires browser-like headers (sent automatically) and
+  throttles bursts with 503s (exponential backoff, 6 retries). Datacenter IPs
+  are aggressively blocked — run from a normal connection.
+- Weekends/holidays are absent from the feed and skipped.
+
 ## Parquet
 
 `--data file.parquet` is auto-detected. Same schema: timestamp (Int64 Unix

@@ -32,8 +32,8 @@ case "${1:-}" in
     cargo build --release
     mkdir -p "$BIN_DIR"
     install -m 0755 target/release/stratz "$BIN_DIR/stratz"
-    mkdir -p "$HOME/.stratz"
-    printf '%s' "$(cd . && pwd)" > "$HOME/.stratz/source.txt"
+    mkdir -p "$HOME/.stratz-cli"
+    printf '%s' "$(cd . && pwd)" > "$HOME/.stratz-cli/source.txt"
     echo "source marker: $HOME/.stratz/source.txt (dev auto-update enabled)"
     echo "installed: $BIN_DIR/stratz"
     ;;
