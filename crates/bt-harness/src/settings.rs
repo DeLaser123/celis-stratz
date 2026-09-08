@@ -41,7 +41,7 @@ fn default_model() -> String {
     "glm-5.3-flash".into()
 }
 fn default_max_tokens() -> u32 {
-    4096
+    8192
 }
 fn default_temperature() -> f64 {
     0.0

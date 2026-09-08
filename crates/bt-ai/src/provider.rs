@@ -175,8 +175,16 @@ impl Provider for OpenAiCompatible {
             .choices
             .first()
             .and_then(|c| c.message.content.clone())
+            .filter(|c| !c.trim().is_empty())
             .ok_or_else(|| {
-                CoreError::InvalidData("provider returned no choices/message content".into())
+                let completion = parsed
+                    .usage
+                    .as_ref()
+                    .and_then(|u| u.completion_tokens)
+                    .unwrap_or(0);
+                CoreError::InvalidData(format!(
+                    "provider returned empty content (completion_tokens={completion}).                      Likely cause: max_tokens exhausted by model reasoning — raise it                      (e.g. stratz ai ... --max-tokens 8192, or ai.max_tokens in .stratz-cli/config.toml)"
+                ))
             })?;
         Ok(CompletionResponse {
             text: content,

@@ -38,7 +38,7 @@ fn default_temperature() -> f64 {
     0.0
 }
 fn default_max_tokens() -> u32 {
-    4096
+    8192
 }
 fn default_budget() -> u64 {
     200_000
