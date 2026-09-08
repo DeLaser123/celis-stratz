@@ -57,6 +57,17 @@
   (cash dividends + splits); cross-symbol price fields; financing term curve;
   Parquet ingestion.
 
+### 0.6.0 — data acquisition + installed-base updates
+- `stratz pull-chart`: Dukascopy OHLCV downloader (LZMA bi5 decoding,
+  zero-indexed month URLs, browser headers + 503 backoff, weekend skipping)
+  writing validated CSVs straight into the project's `Data/` folder.
+- Self-update: the installed binary detects a newer source build or GitHub
+  release on every run, swaps itself in and continues on the new version;
+  `stratz self-update --check/--force/--disable/--enable/--set-source`.
+- Bare-date timestamps (`--from 2024-01-04`) parse correctly (fixed).
+- CLI home state moved to `~/.stratz-cli` (no longer collides with project
+  discovery).
+
 ### Next (candidates)
 - Portfolio-level exposure constraints; multi-currency accounting;
   indicators on higher timeframes across symbols; docs site build in CI.

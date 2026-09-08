@@ -357,7 +357,7 @@ dependencies = [
 
 [[package]]
 name = "bt-accounting"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bt-core",
  "chrono-tz",
@@ -369,7 +369,7 @@ dependencies = [
 
 [[package]]
 name = "bt-ai"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bt-core",
  "bt-simulation",
@@ -387,7 +387,7 @@ dependencies = [
 
 [[package]]
 name = "bt-analytics"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bt-core",
  "chrono",
@@ -400,7 +400,7 @@ dependencies = [
 
 [[package]]
 name = "bt-cli"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bt-ai",
  "bt-analytics",
@@ -424,7 +424,7 @@ dependencies = [
 
 [[package]]
 name = "bt-core"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "chrono",
  "chrono-tz",
@@ -438,7 +438,7 @@ dependencies = [
 
 [[package]]
 name = "bt-data"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "arrow",
  "bt-core",
@@ -458,7 +458,7 @@ dependencies = [
 
 [[package]]
 name = "bt-execution"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bt-core",
  "rust_decimal",
@@ -468,7 +468,7 @@ dependencies = [
 
 [[package]]
 name = "bt-harness"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bt-accounting",
  "bt-ai",
@@ -494,7 +494,7 @@ dependencies = [
 
 [[package]]
 name = "bt-risk"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bt-core",
  "chrono",
@@ -506,7 +506,7 @@ dependencies = [
 
 [[package]]
 name = "bt-simulation"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bt-accounting",
  "bt-analytics",
@@ -527,7 +527,7 @@ dependencies = [
 
 [[package]]
 name = "bt-strategy"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bt-core",
  "bt-data",
