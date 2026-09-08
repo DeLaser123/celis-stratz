@@ -70,7 +70,7 @@ pub fn resolve_inputs(
             let spec = version.path.join("strategy.yaml");
             if !spec.exists() {
                 return Err(CoreError::InvalidData(format!(
-                    "{} has no strategy.yaml — compile it first (`backtest ai compile`) or write it manually",
+                    "{} has no strategy.yaml — compile it first (`stratz ai compile`) or write it manually",
                     version.path.display()
                 )));
             }

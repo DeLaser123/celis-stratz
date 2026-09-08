@@ -1,4 +1,4 @@
-//! `backtest` CLI — the harness shell (spec §29 + enterprise harness).
+//! `stratz` CLI — the harness shell (spec §29 + enterprise harness).
 //! Thin consumer of the kernel crates and the bt-harness layer.
 
 mod ai_cmds;

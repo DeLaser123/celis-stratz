@@ -1,4 +1,4 @@
-//! `backtest ai` subcommands: compile / review / explain / ask / status /
+//! `stratz ai` subcommands: compile / review / explain / ask / status /
 //! ledger / login. Everything AI-related in the CLI funnels through here and
 //! through the bt-ai gateway (budgets, cache, ledger).
 
@@ -90,7 +90,7 @@ pub fn setup_with(
         None => {
             return Err(CoreError::InvalidData(format!(
                 "no AI API key found. Provide one with --api-key, the {} environment variable, \
-                 or `backtest ai login --api-key <key>`",
+                 or `stratz ai login --api-key <key>`",
                 bt_ai::keys::ENV_VAR
             )))
         }
@@ -392,7 +392,7 @@ pub fn cmd_status(ai: &AiContext, project: Option<&Project>) -> CoreResult<()> {
     println!("key source:  {}", ai.key_source.label());
     if ai.key_source == KeySource::None {
         println!(
-            "             (provide via --api-key, {}, or `backtest ai login --api-key <key>`)",
+            "             (provide via --api-key, {}, or `stratz ai login --api-key <key>`)",
             bt_ai::keys::ENV_VAR
         );
     }
