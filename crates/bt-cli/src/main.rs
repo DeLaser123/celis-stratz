@@ -201,6 +201,9 @@ enum Commands {
         /// Output file or directory (default: Data/<SYMBOL>_<tf>.csv in a project).
         #[arg(long)]
         output: Option<PathBuf>,
+        /// Redownload everything, ignoring the resumable download cache.
+        #[arg(long)]
+        no_cache: bool,
     },
     /// Update the installed stratz binary (source build or GitHub release).
     SelfUpdate {
@@ -374,6 +377,7 @@ fn dispatch(cli: Cli) -> CoreResult<()> {
             side,
             decimals,
             output,
+            no_cache,
         } => {
             let args = pull_chart::PullChartArgs {
                 symbol: &symbol,
@@ -383,6 +387,7 @@ fn dispatch(cli: Cli) -> CoreResult<()> {
                 side: &side,
                 decimals,
                 output: output.as_ref(),
+                no_cache,
             };
             pull_chart::cmd(&args)
         }

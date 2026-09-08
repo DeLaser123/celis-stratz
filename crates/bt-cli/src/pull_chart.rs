@@ -17,6 +17,8 @@ pub struct PullChartArgs<'a> {
     pub side: &'a str,
     pub decimals: Option<u32>,
     pub output: Option<&'a PathBuf>,
+    /// Skip the resumable download cache (fresh copy from the network).
+    pub no_cache: bool,
 }
 
 pub fn cmd(args: &PullChartArgs<'_>) -> CoreResult<()> {
@@ -83,7 +85,25 @@ pub fn cmd(args: &PullChartArgs<'_>) -> CoreResult<()> {
         decimals
     );
 
-    let report = dukascopy::pull(&spec, |done, total| {
+    // Download cache: closed periods are immutable history, so an
+    // interrupted or throttled pull resumes where it stopped on rerun.
+    let project = Project::open_current().ok();
+    let cache = if args.no_cache {
+        None
+    } else {
+        let dir = match &project {
+            Some(p) => p
+                .root
+                .join(bt_harness::project::STATE_DIR)
+                .join("cache")
+                .join("dukascopy"),
+            None => std::env::temp_dir().join("stratz-dukascopy-cache"),
+        };
+        // The cache is an optimization, never a requirement.
+        bt_data::dukascopy::Bi5Cache::new(&dir).ok()
+    };
+
+    let report = dukascopy::pull(&spec, cache.as_ref(), |done, total| {
         eprintln!("  progress: {done}/{total} files");
     })?;
 
@@ -103,7 +123,7 @@ pub fn cmd(args: &PullChartArgs<'_>) -> CoreResult<()> {
             (p.clone(), String::new())
         }
         Some(p) => (p.join(&file_name), String::new()),
-        None => match Project::open_current().ok() {
+        None => match &project {
             Some(project) => {
                 let p = project.root.join("Data").join(&file_name);
                 (
@@ -185,8 +205,14 @@ pub fn cmd(args: &PullChartArgs<'_>) -> CoreResult<()> {
             .unwrap_or_default(),
     );
     println!(
-        "files: {} fetched, {} missing (weekends/holidays)",
-        report.files_fetched, report.files_missing
+        "files: {} fetched, {} missing (empty days), {} reused from cache{}",
+        report.files_fetched,
+        report.files_missing,
+        report.files_cached,
+        cache
+            .as_ref()
+            .map(|c| format!(" ({})", c.dir().display()))
+            .unwrap_or_default(),
     );
     println!(
         "validation: {} ({} rows kept)",

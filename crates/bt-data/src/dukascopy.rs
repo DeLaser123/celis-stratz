@@ -19,7 +19,14 @@
 //! - Prices are integers scaled by 10^decimals (5 for most FX, 3 for JPY
 //!   pairs — configurable).
 //! - Volume is Dukascopy's native unit (millions for FX), passed through.
-//! - Weekends/holidays have no files: HTTP 404 means "empty", never an error.
+//! - Empty days (market holidays) return HTTP 404 — skipped, never an error.
+//!   Weekends DO serve files (verified against the live feed: FX candles are
+//!   published for Saturdays/Sundays), so every calendar day is requested.
+//!
+//! Edge throttling: Dukascopy 503s clients that fetch too fast. Defenses:
+//! one keep-alive agent per pull, 250 ms pacing between requests, a patient
+//! exponential backoff honoring `Retry-After`, and a raw-file cache that
+//! makes an interrupted pull resumable (`Bi5Cache`).
 //!
 //! Bars are fetched at the native granularity and resampled to the requested
 //! timeframe with the engine's own resampler, so downloaded data and engine
@@ -32,6 +39,7 @@ use bt_core::D;
 use chrono::Datelike;
 use rust_decimal_macros::dec;
 use std::io::Read;
+use std::path::{Path, PathBuf};
 
 const BASE: &str = "https://datafeed.dukascopy.com/datafeed";
 const RECORD_LEN: usize = 24;
@@ -153,11 +161,41 @@ fn browser_headers(req: ureq::Request) -> ureq::Request {
     )
     .set("Referer", "https://www.dukascopy.com/trading-tools/")
     .set("Accept", "*/*")
+    .set("Accept-Language", "en-US,en;q=0.9")
+    .set("Sec-Fetch-Dest", "empty")
+    .set("Sec-Fetch-Mode", "cors")
+    .set("Sec-Fetch-Site", "same-site")
 }
 
-fn fetch_bi5(url: &str, retries: u32) -> CoreResult<Option<Vec<u8>>> {
-    for attempt in 0..=retries {
-        match browser_headers(ureq::get(url))
+const WARMUP_URL: &str = "https://www.dukascopy.com/trading-tools/";
+
+/// The datafeed is normally fetched by a browser that first loaded the
+/// referring page, so do the same once per pull: it establishes session
+/// cookies on the shared agent. Best-effort — never fails the pull.
+fn warm_up(agent: &ureq::Agent) {
+    let _ = browser_headers(agent.get(WARMUP_URL))
+        .timeout(std::time::Duration::from_secs(5))
+        .call();
+}
+
+/// One shared agent per pull: keep-alive avoids the fresh-TLS-per-request
+/// pattern that the edge treats as bot traffic.
+fn http_agent() -> ureq::Agent {
+    ureq::AgentBuilder::new().build()
+}
+
+/// Backoff before each 503 retry (ms). The edge's throttle cool-downs outlast
+/// short retries, so patience beats hammering: ~3 minutes cumulative.
+const RETRY_DELAYS_MS: [u64; 8] = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 60_000, 60_000];
+const MAX_RETRY_AFTER_MS: u64 = 120_000;
+
+fn fetch_bi5(agent: &ureq::Agent, url: &str) -> CoreResult<Option<Vec<u8>>> {
+    let last = RETRY_DELAYS_MS.len();
+    // `scheduled_ms` is the wait after attempt N fails (attempt 8 is the
+    // final one and errors out — its slot is never slept).
+    let schedule = RETRY_DELAYS_MS.iter().copied().chain(std::iter::once(0));
+    for (attempt, scheduled_ms) in schedule.enumerate() {
+        match browser_headers(agent.get(url))
             .timeout(std::time::Duration::from_secs(30))
             .call()
         {
@@ -170,11 +208,18 @@ fn fetch_bi5(url: &str, retries: u32) -> CoreResult<Option<Vec<u8>>> {
             }
             Err(ureq::Error::Status(404, _)) => return Ok(None),
             Err(ureq::Error::Status(503, resp)) => {
-                // The edge throttles bursts with 503s — exponential backoff.
-                let _ = resp.into_string();
-                if attempt < retries {
-                    let backoff_ms = 1000u64 * (1 << attempt).min(16);
-                    std::thread::sleep(std::time::Duration::from_millis(backoff_ms));
+                let retry_after_ms = resp
+                    .header("retry-after")
+                    .and_then(|v| v.trim().parse::<u64>().ok())
+                    .map(|s| s.saturating_mul(1_000).min(MAX_RETRY_AFTER_MS));
+                if attempt < last {
+                    let delay_ms = retry_after_ms.unwrap_or(scheduled_ms);
+                    eprintln!(
+                        "  throttled (503), waiting {}s (retry {} of {last})",
+                        delay_ms / 1_000,
+                        attempt + 1
+                    );
+                    std::thread::sleep(std::time::Duration::from_millis(delay_ms));
                     continue;
                 }
                 return Err(CoreError::InvalidData(format!(
@@ -183,8 +228,9 @@ fn fetch_bi5(url: &str, retries: u32) -> CoreResult<Option<Vec<u8>>> {
             }
             Err(ureq::Error::Status(code, resp)) => {
                 let body = resp.into_string().unwrap_or_default();
-                if attempt < retries {
-                    std::thread::sleep(std::time::Duration::from_millis(500));
+                if attempt < last {
+                    eprintln!("  HTTP {code}, retrying ({attempt} of {last})");
+                    std::thread::sleep(std::time::Duration::from_millis(scheduled_ms.max(1_000)));
                     continue;
                 }
                 return Err(CoreError::InvalidData(format!(
@@ -193,8 +239,9 @@ fn fetch_bi5(url: &str, retries: u32) -> CoreResult<Option<Vec<u8>>> {
                 )));
             }
             Err(e) => {
-                if attempt < retries {
-                    std::thread::sleep(std::time::Duration::from_millis(500));
+                if attempt < last {
+                    eprintln!("  network error ({e}), retrying ({attempt} of {last})");
+                    std::thread::sleep(std::time::Duration::from_millis(scheduled_ms.max(1_000)));
                     continue;
                 }
                 return Err(CoreError::InvalidData(format!("fetch {url}: {e}")));
@@ -202,6 +249,61 @@ fn fetch_bi5(url: &str, retries: u32) -> CoreResult<Option<Vec<u8>>> {
         }
     }
     unreachable!()
+}
+
+/// Raw `.bi5` download cache, keyed by URL hash. Closed periods are immutable
+/// history on Dukascopy, so entries never need invalidation — this is what
+/// makes an interrupted pull resumable. The still-growing current period is
+/// never written (see `pull_with`), so range ends stay accurate.
+pub struct Bi5Cache {
+    dir: PathBuf,
+}
+
+impl Bi5Cache {
+    pub fn new(dir: impl Into<PathBuf>) -> CoreResult<Bi5Cache> {
+        let dir = dir.into();
+        std::fs::create_dir_all(&dir).map_err(CoreError::Io)?;
+        Ok(Bi5Cache { dir })
+    }
+
+    fn path(&self, url: &str) -> PathBuf {
+        self.dir
+            .join(format!("{}.bi5", bt_core::hash::sha256_hex(url.as_bytes())))
+    }
+
+    pub fn get(&self, url: &str) -> Option<Vec<u8>> {
+        std::fs::read(self.path(url)).ok()
+    }
+
+    /// Best-effort: a cache write failure must never fail a pull.
+    pub fn put(&self, url: &str, bytes: &[u8]) {
+        let _ = std::fs::write(self.path(url), bytes);
+    }
+
+    pub fn remove(&self, url: &str) {
+        let _ = std::fs::remove_file(self.path(url));
+    }
+
+    pub fn dir(&self) -> &Path {
+        &self.dir
+    }
+}
+
+/// Upper bound of one file's period: day files cover 1 day, month files at
+/// most 31 days (over-estimating keeps the current month out of the cache,
+/// which is what we want while Dukascopy keeps filling it).
+fn file_window_secs(source: NativeSource) -> i64 {
+    match source {
+        NativeSource::Min1 => 86_400,
+        NativeSource::Day1 => 31 * 86_400,
+    }
+}
+
+fn resume_error(e: CoreError, fetched: usize, total: usize) -> CoreError {
+    CoreError::InvalidData(format!(
+        "{e}; pulled {fetched}/{total} files before failing — wait a minute and \
+         rerun the same command (cached files are reused, so the pull resumes)"
+    ))
 }
 
 /// Decompress LZMA1 (alone) + decode 24-byte big-endian candle records.
@@ -259,27 +361,107 @@ pub struct PullReport {
     pub series: BarSeries,
     pub files_fetched: usize,
     pub files_missing: usize,
+    /// Files served from the download cache instead of the network.
+    pub files_cached: usize,
     pub native_bars: usize,
 }
 
+/// Politeness pacing between network fetches: sustained bursts are exactly
+/// what the edge throttles; ~4 requests/second stays comfortably under it.
+const PACING_MS: u64 = 250;
+
 /// Fetch native candles for the range and resample to the requested
-/// timeframe. Missing files (weekends/holidays) are skipped and counted;
-/// network failures after retries abort with the offending URL.
-pub fn pull(spec: &PullSpec, progress: impl Fn(usize, usize)) -> CoreResult<PullReport> {
+/// timeframe. Missing files (holidays) are skipped and counted; network
+/// failures after retries abort with a resume hint — rerunning the same
+/// command continues from the cache.
+pub fn pull(
+    spec: &PullSpec,
+    cache: Option<&Bi5Cache>,
+    progress: impl Fn(usize, usize),
+) -> CoreResult<PullReport> {
+    let agent = http_agent();
+    warm_up(&agent);
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    pull_with(
+        spec,
+        cache,
+        PACING_MS,
+        |url| fetch_bi5(&agent, url),
+        progress,
+    )
+}
+
+/// Testable core: injectable fetcher, cache and pacing.
+pub(crate) fn pull_with(
+    spec: &PullSpec,
+    cache: Option<&Bi5Cache>,
+    pacing_ms: u64,
+    mut fetch: impl FnMut(&str) -> CoreResult<Option<Vec<u8>>>,
+    mut progress: impl FnMut(usize, usize),
+) -> CoreResult<PullReport> {
     let (source, native_interval) = native_source(spec.timeframe_secs);
     let files = enumerate_files(source, spec);
     let total = files.len();
+    let window_secs = file_window_secs(source);
 
     let mut bars: Vec<Bar> = Vec::new();
     let mut fetched = 0usize;
     let mut missing = 0usize;
+    let mut cached = 0usize;
     for (i, (url, period_start)) in files.into_iter().enumerate() {
-        match fetch_bi5(&url, 6)? {
-            None => missing += 1,
+        // Only complete periods are cacheable: the current day/month keeps
+        // growing on Dukascopy's side, so a cached copy would silently
+        // truncate the range end.
+        let complete = period_start + chrono::Duration::seconds(window_secs) <= spec.to;
+        let mut from_cache = false;
+        let bytes = match cache.filter(|_| complete).and_then(|c| c.get(&url)) {
             Some(bytes) => {
-                bars.extend(decode_bi5_candles(&bytes, period_start, spec.decimals)?);
-                fetched += 1;
+                from_cache = true;
+                cached += 1;
+                Some(bytes)
             }
+            None => {
+                let bytes = fetch(&url).map_err(|e| resume_error(e, fetched, total))?;
+                if let (Some(c), Some(b)) = (cache, &bytes) {
+                    if complete {
+                        c.put(&url, b);
+                    }
+                }
+                bytes
+            }
+        };
+        match bytes {
+            None => missing += 1,
+            Some(bytes) => match decode_bi5_candles(&bytes, period_start, spec.decimals) {
+                Ok(new_bars) => {
+                    bars.extend(new_bars);
+                    fetched += 1;
+                }
+                Err(e) if from_cache => {
+                    // A corrupt cache entry must not poison the pull: evict
+                    // it and fetch the real bytes once.
+                    if let Some(c) = cache {
+                        c.remove(&url);
+                    }
+                    let bytes = fetch(&url).map_err(|e| resume_error(e, fetched, total))?;
+                    match bytes {
+                        None => missing += 1,
+                        Some(b) => {
+                            if let (Some(c), true) = (cache, complete) {
+                                c.put(&url, &b);
+                            }
+                            let new_bars = decode_bi5_candles(&b, period_start, spec.decimals)?;
+                            bars.extend(new_bars);
+                            fetched += 1;
+                        }
+                    }
+                }
+                Err(e) => return Err(e),
+            },
+        }
+        // Pacing applies to network fetches only; cache hits are local disk.
+        if !from_cache && pacing_ms > 0 && i + 1 < total {
+            std::thread::sleep(std::time::Duration::from_millis(pacing_ms));
         }
         if (i + 1) % 50 == 0 || i + 1 == total {
             progress(i + 1, total);
@@ -298,6 +480,7 @@ pub fn pull(spec: &PullSpec, progress: impl Fn(usize, usize)) -> CoreResult<Pull
         series: resampled,
         files_fetched: fetched,
         files_missing: missing,
+        files_cached: cached,
         native_bars,
     })
 }
@@ -536,5 +719,156 @@ mod tests {
         assert_eq!(native_source(3600), (NativeSource::Min1, 60));
         assert_eq!(native_source(14_400), (NativeSource::Min1, 60));
         assert_eq!(native_source(86_400), (NativeSource::Day1, 86_400));
+    }
+
+    #[test]
+    fn enumerate_lists_every_calendar_day() {
+        // Weekends DO serve files on Dukascopy (verified against the live
+        // feed: FX candles are published Saturdays/Sundays), so every
+        // calendar day must be requested — 404s are counted as missing.
+        let spec = PullSpec {
+            symbol: "EURUSD".into(),
+            timeframe_secs: 300,
+            from: ts(2025, 9, 8, 0), // Monday
+            to: ts(2025, 9, 15, 0),
+            side: Side::Bid,
+            decimals: 5,
+        };
+        let files = enumerate_files(NativeSource::Min1, &spec);
+        assert_eq!(files.len(), 8, "Sep 8..15 inclusive");
+        assert!(
+            files.iter().any(|(u, _)| u.contains("/2025/08/13/")),
+            "Saturday Sep 13 (month 08, zero-indexed) must be requested: {files:?}"
+        );
+    }
+
+    /// One valid 1-minute bi5 record, compressed (same payload as the
+    /// decode round-trip test).
+    fn ok_bytes() -> Vec<u8> {
+        let mut payload = Vec::new();
+        let be32 = |v: u32| v.to_be_bytes();
+        payload.extend_from_slice(&be32(60));
+        payload.extend_from_slice(&be32(110_000));
+        payload.extend_from_slice(&be32(110_100));
+        payload.extend_from_slice(&be32(109_900));
+        payload.extend_from_slice(&be32(110_150));
+        payload.extend_from_slice(&1.25f32.to_be_bytes());
+        let mut compressed = Vec::new();
+        lzma_rs::lzma_compress(&mut std::io::Cursor::new(&payload), &mut compressed).unwrap();
+        compressed
+    }
+
+    fn day_spec() -> PullSpec {
+        PullSpec {
+            symbol: "EURUSD".into(),
+            timeframe_secs: 60,
+            from: ts(2024, 1, 1, 0),
+            to: ts(2024, 1, 3, 0),
+            side: Side::Bid,
+            decimals: 5,
+        }
+    }
+
+    fn temp_cache(tag: &str) -> Bi5Cache {
+        let dir = std::env::temp_dir().join(format!("bt_bi5_{tag}_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        Bi5Cache::new(&dir).unwrap()
+    }
+
+    #[test]
+    fn pull_resumes_from_cache() {
+        let cache = temp_cache("resume");
+        let spec = day_spec();
+        // Jan 1 + Jan 2 are complete periods; Jan 3 404s (and absence is
+        // never cached, since the live feed keeps filling that day).
+        let counter = std::rc::Rc::new(std::cell::Cell::new(0usize));
+        let mk = || {
+            let counter = std::rc::Rc::clone(&counter);
+            move |url: &str| -> CoreResult<Option<Vec<u8>>> {
+                counter.set(counter.get() + 1);
+                if url.contains("/2024/00/03/") {
+                    Ok(None)
+                } else {
+                    Ok(Some(ok_bytes()))
+                }
+            }
+        };
+        let report = pull_with(&spec, Some(&cache), 0, mk(), |_, _| {}).unwrap();
+        assert_eq!(report.files_fetched, 2);
+        assert_eq!(report.files_missing, 1);
+        assert_eq!(report.files_cached, 0);
+        assert_eq!(counter.get(), 3, "every file hit the network once");
+
+        let report2 = pull_with(&spec, Some(&cache), 0, mk(), |_, _| {}).unwrap();
+        assert_eq!(report2.files_cached, 2, "complete periods come from cache");
+        assert_eq!(report2.files_missing, 1);
+        assert_eq!(counter.get(), 4, "only the 404 is re-attempted");
+        let _ = std::fs::remove_dir_all(cache.dir());
+    }
+
+    #[test]
+    fn incomplete_period_is_never_cached() {
+        let cache = temp_cache("incomplete");
+        // `to` lands mid-day: Jan 2's file is still growing on the feed.
+        let spec = PullSpec {
+            from: ts(2024, 1, 1, 0),
+            to: ts(2024, 1, 2, 12),
+            ..day_spec()
+        };
+        let files = enumerate_files(NativeSource::Min1, &spec);
+        let fetch = |url: &str| -> CoreResult<Option<Vec<u8>>> {
+            if url.contains("/2024/00/02/") {
+                Ok(Some(ok_bytes()))
+            } else {
+                Ok(None)
+            }
+        };
+        let report = pull_with(&spec, Some(&cache), 0, fetch, |_, _| {}).unwrap();
+        assert_eq!(report.files_fetched, 1);
+        assert!(
+            cache.get(&files[1].0).is_none(),
+            "the growing day must not be cached"
+        );
+        let _ = std::fs::remove_dir_all(cache.dir());
+    }
+
+    #[test]
+    fn corrupt_cache_entry_is_evicted_and_refetched() {
+        let cache = temp_cache("corrupt");
+        let spec = day_spec();
+        let files = enumerate_files(NativeSource::Min1, &spec);
+        cache.put(&files[0].0, &[1, 2, 3]); // garbage: fails LZMA decode
+
+        let fetch = |_: &str| -> CoreResult<Option<Vec<u8>>> { Ok(Some(ok_bytes())) };
+        let report = pull_with(&spec, Some(&cache), 0, fetch, |_, _| {}).unwrap();
+        assert_eq!(report.files_fetched, 3, "bad entry evicted, refetched");
+        assert!(cache.get(&files[0].0).is_some(), "valid bytes re-cached");
+
+        let report2 = pull_with(&spec, Some(&cache), 0, fetch, |_, _| {}).unwrap();
+        assert_eq!(
+            report2.files_cached, 2,
+            "the incomplete Jan 3 file is never cached"
+        );
+        let _ = std::fs::remove_dir_all(cache.dir());
+    }
+
+    #[test]
+    fn fetch_failure_carries_resume_hint() {
+        let spec = day_spec();
+        let mut n = 0;
+        let fetch = move |_: &str| -> CoreResult<Option<Vec<u8>>> {
+            n += 1;
+            if n == 2 {
+                Err(CoreError::InvalidData(
+                    "HTTP 503 (Dukascopy edge throttling; retries exhausted)".into(),
+                ))
+            } else {
+                Ok(Some(ok_bytes()))
+            }
+        };
+        let err = pull_with(&spec, None, 0, fetch, |_, _| {}).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("rerun the same command"), "{msg}");
+        assert!(msg.contains("1/3"), "fetched count in: {msg}");
     }
 }

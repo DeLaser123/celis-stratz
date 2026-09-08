@@ -75,6 +75,14 @@
   still apply. AI response-cache keys include `max_tokens`/`temperature` so a
   response generated under a different cap is never reused.
 
+- `pull-chart` resilience: keep-alive agent + 250 ms request pacing, patient
+  503 backoff honoring `Retry-After` (8 retries, ~3 min cumulative), cookie
+  warm-up, and a resumable download cache (`.stratz/cache/dukascopy`,
+  `--no-cache` to bypass) — a throttled or interrupted 12-month pull continues
+  where it stopped on rerun instead of restarting. Failures report progress
+  and the resume hint; the still-growing current day/month is never cached
+  and corrupt cache entries are evicted and refetched.
+
 ### Next (candidates)
 - Portfolio-level exposure constraints; multi-currency accounting;
   indicators on higher timeframes across symbols; docs site build in CI.
