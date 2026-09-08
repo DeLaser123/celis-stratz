@@ -18,7 +18,7 @@ pub struct LedgerEntry {
     /// SHA-256 of the exact request payload (model + messages + params).
     pub prompt_hash: String,
     pub temperature: f64,
-    pub max_tokens: u32,
+    pub max_tokens: Option<u32>,
     pub cache_hit: bool,
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
@@ -104,7 +104,7 @@ mod tests {
             model: "glm-5.3-flash".into(),
             prompt_hash: "ph".into(),
             temperature: 0.0,
-            max_tokens: 100,
+            max_tokens: Some(100),
             cache_hit: false,
             prompt_tokens: 10,
             completion_tokens: 20,

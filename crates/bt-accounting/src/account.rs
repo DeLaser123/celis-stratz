@@ -90,6 +90,8 @@ impl Account {
             amount,
             balance_after: new_balance,
             reference,
+            // Accounting ledger entries are not AI calls.
+            max_tokens: None,
         });
         Ok(())
     }

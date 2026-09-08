@@ -353,7 +353,7 @@ mod tests {
     fn budget_stops_runaway_loops() {
         let provider = MockProvider::new(vec![BAD_SPEC.to_string(); 50]);
         let cfg = GatewayConfig {
-            max_tokens: 100,
+            max_tokens: Some(100),
             budget_tokens_per_command: 250, // ~2 calls then stop
             ..Default::default()
         };

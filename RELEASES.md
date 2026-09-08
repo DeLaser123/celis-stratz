@@ -68,6 +68,13 @@
 - CLI home state moved to `~/.stratz-cli` (no longer collides with project
   discovery).
 
+### Unreleased
+- `max_tokens` is no longer a hard harness cap: `0` or omitting the setting
+  means **not limited** (the provider applies its own maximum). The project
+  config template now defaults to `max_tokens = 0`; per-command token budgets
+  still apply. AI response-cache keys include `max_tokens`/`temperature` so a
+  response generated under a different cap is never reused.
+
 ### Next (candidates)
 - Portfolio-level exposure constraints; multi-currency accounting;
   indicators on higher timeframes across symbols; docs site build in CI.

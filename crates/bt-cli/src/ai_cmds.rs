@@ -58,8 +58,8 @@ pub fn setup_with(
     if let Some(u) = flags.base_url {
         cfg.base_url = Some(u.to_string());
     }
-    if let Some(t) = flags.max_tokens {
-        cfg.max_tokens = t;
+    if flags.max_tokens.is_some() {
+        cfg.max_tokens = flags.max_tokens;
     }
     if let Some(t) = flags.temperature {
         cfg.temperature = t;
@@ -396,7 +396,15 @@ pub fn cmd_status(ai: &AiContext, project: Option<&Project>) -> CoreResult<()> {
             bt_ai::keys::ENV_VAR
         );
     }
-    println!("max tokens:  {}", ai.settings.ai.max_tokens);
+    println!(
+        "max tokens:  {}",
+        ai.settings
+            .ai
+            .max_tokens
+            .filter(|t| *t > 0)
+            .map(|t| t.to_string())
+            .unwrap_or_else(|| "not limited (provider default)".into())
+    );
     println!("temperature: {}", ai.settings.ai.temperature);
     println!(
         "budget:      {} tokens per command",

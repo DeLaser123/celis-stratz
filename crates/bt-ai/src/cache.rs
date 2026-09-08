@@ -33,6 +33,25 @@ impl ResponseCache {
         }))
     }
 
+    /// Cache identity for real requests: request params that change the
+    /// response are part of the key, so a response generated under a
+    /// different `max_tokens`/`temperature` is never reused.
+    pub fn key_params(
+        model: &str,
+        base_url: &str,
+        payload: &str,
+        max_tokens: Option<u32>,
+        temperature: f64,
+    ) -> String {
+        bt_core::hash::hash_json(&serde_json::json!({
+            "model": model,
+            "base_url": base_url,
+            "payload": payload,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+        }))
+    }
+
     fn path_for(&self, key: &str) -> PathBuf {
         self.dir.join(format!("{key}.json"))
     }
@@ -73,6 +92,17 @@ impl ResponseCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn key_params_distinguishes_request_params() {
+        let base = ResponseCache::key_params("m", "u", "p", None, 0.0);
+        assert_ne!(
+            base,
+            ResponseCache::key_params("m", "u", "p", Some(8192), 0.0)
+        );
+        assert_ne!(base, ResponseCache::key_params("m", "u", "p", None, 0.7));
+        assert_eq!(base, ResponseCache::key_params("m", "u", "p", None, 0.0));
+    }
 
     #[test]
     fn put_get_roundtrip_and_key_sensitivity() {

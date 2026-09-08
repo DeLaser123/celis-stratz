@@ -46,7 +46,8 @@ pub struct CompletionRequest {
     pub model: String,
     pub messages: Vec<Message>,
     pub temperature: f64,
-    pub max_tokens: u32,
+    /// None = provider default (not limited by Stratz).
+    pub max_tokens: Option<u32>,
     /// Ask the endpoint for JSON-constrained output (best effort; our own
     /// validation is the real gate).
     pub json_mode: bool,
@@ -94,7 +95,8 @@ struct WireRequest<'a> {
     model: &'a str,
     messages: &'a [Message],
     temperature: f64,
-    max_tokens: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    max_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     response_format: Option<serde_json::Value>,
 }

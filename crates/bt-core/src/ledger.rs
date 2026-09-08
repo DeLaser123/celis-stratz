@@ -27,6 +27,9 @@ pub struct LedgerEntry {
     pub balance_after: D,
     /// Human-readable reference into the event log (e.g. "order_id=12").
     pub reference: String,
+    /// Per-call completion cap (None = not limited by Stratz).
+    #[serde(default)]
+    pub max_tokens: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

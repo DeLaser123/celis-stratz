@@ -24,8 +24,9 @@ pub struct AiSettings {
     pub model: String,
     #[serde(default)]
     pub base_url: Option<String>,
-    #[serde(default = "default_max_tokens")]
-    pub max_tokens: u32,
+    /// None = not limited by Stratz (provider default).
+    #[serde(default)]
+    pub max_tokens: Option<u32>,
     #[serde(default = "default_temperature")]
     pub temperature: f64,
     #[serde(default = "default_repair_rounds")]
@@ -39,9 +40,6 @@ fn default_provider() -> String {
 }
 fn default_model() -> String {
     "glm-5.3-flash".into()
-}
-fn default_max_tokens() -> u32 {
-    8192
 }
 fn default_temperature() -> f64 {
     0.0
@@ -59,7 +57,7 @@ impl Default for AiSettings {
             provider: default_provider(),
             model: default_model(),
             base_url: None,
-            max_tokens: default_max_tokens(),
+            max_tokens: None,
             temperature: default_temperature(),
             max_repair_rounds: default_repair_rounds(),
             budget_tokens_per_command: default_budget(),
@@ -122,7 +120,7 @@ mod tests {
 provider = "zai"
 model = "glm-5.3-flash"
 base_url = ""
-max_tokens = 4096
+max_tokens = 0            # 0 or omit = not limited (provider default); e.g. 8192 to cap
 temperature = 0.0
 max_repair_rounds = 3
 budget_tokens_per_command = 200000

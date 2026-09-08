@@ -20,8 +20,9 @@ pub struct GatewayConfig {
     pub base_url: Option<String>,
     #[serde(default = "default_temperature")]
     pub temperature: f64,
-    #[serde(default = "default_max_tokens")]
-    pub max_tokens: u32,
+    /// None = not limited by Stratz (the provider applies its own maximum).
+    #[serde(default)]
+    pub max_tokens: Option<u32>,
     #[serde(default = "default_budget")]
     pub budget_tokens_per_command: u64,
     #[serde(default = "default_repair_rounds")]
@@ -37,9 +38,6 @@ fn default_model() -> String {
 fn default_temperature() -> f64 {
     0.0
 }
-fn default_max_tokens() -> u32 {
-    8192
-}
 fn default_budget() -> u64 {
     200_000
 }
@@ -54,7 +52,7 @@ impl Default for GatewayConfig {
             model: default_model(),
             base_url: None,
             temperature: default_temperature(),
-            max_tokens: default_max_tokens(),
+            max_tokens: None,
             budget_tokens_per_command: default_budget(),
             max_repair_rounds: default_repair_rounds(),
         }
@@ -62,6 +60,12 @@ impl Default for GatewayConfig {
 }
 
 impl GatewayConfig {
+    /// `0` is normalized to "not limited" (provider default), matching the
+    /// config template's documented value.
+    pub fn effective_max_tokens(&self) -> Option<u32> {
+        self.max_tokens.filter(|t| *t > 0)
+    }
+
     /// Effective base URL for the chosen provider.
     pub fn effective_base_url(&self) -> String {
         match self.base_url.as_deref().map(str::trim) {
@@ -96,6 +100,8 @@ impl Gateway {
         cache: Option<ResponseCache>,
         ledger: Option<LedgerWriter>,
     ) -> Gateway {
+        let mut cfg = cfg;
+        cfg.max_tokens = cfg.effective_max_tokens();
         let provider: Box<dyn Provider> = Box::new(crate::provider::OpenAiCompatible::new(
             cfg.effective_base_url(),
             api_key.to_string(),
@@ -159,17 +165,25 @@ impl Gateway {
             });
         }
 
-        // Budget: worst-case charge is max_tokens for this call.
-        if self.tokens_used + self.cfg.max_tokens as u64 > self.cfg.budget_tokens_per_command {
+        // Budget: with a per-call cap the worst case is max_tokens; without
+        // one we compare accumulated usage against the budget directly.
+        let worst_case = u64::from(self.cfg.max_tokens.unwrap_or(0));
+        if self.tokens_used.saturating_add(worst_case) > self.cfg.budget_tokens_per_command {
             return Err(CoreError::InvalidData(format!(
                 "AI token budget exhausted for this command (used {}, cap {})",
                 self.tokens_used, self.cfg.budget_tokens_per_command
             )));
         }
 
-        // Cache consult.
-        let cache_key =
-            ResponseCache::key(&self.cfg.model, &self.cfg.effective_base_url(), &payload);
+        // Cache identity includes request params that change the response, so
+        // a response generated under a different cap is never reused.
+        let cache_key = ResponseCache::key_params(
+            &self.cfg.model,
+            &self.cfg.effective_base_url(),
+            &payload,
+            self.cfg.max_tokens,
+            self.cfg.temperature,
+        );
         if let Some(cache) = &self.cache {
             if let Some(hit) = cache.get(&cache_key) {
                 let entry = self.make_entry(
